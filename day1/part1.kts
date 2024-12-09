@@ -1,5 +1,7 @@
 import java.io.File
 
+import kotlin.math.absoluteValue
+
 val input = File("day1/input.txt").readLines()
 
 fun getColumns(lines: List<String>): List<List<Int>> {

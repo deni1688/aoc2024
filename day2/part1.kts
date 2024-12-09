@@ -2,7 +2,7 @@ import java.io.File
 
 import kotlin.math.absoluteValue
 
-val input = File("./input.txt").readLines()
+val input = File("day2/input.txt").readLines()
 
 fun isSafe(report: List<Int>): Boolean {
     for (index in 1..<report.size) {
