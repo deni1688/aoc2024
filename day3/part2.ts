@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 
-const regex = /mul\((\d{1,3}),(\d{1,3})|don't\(\)|do\(\)\n/g;
+const regex = /mul\((\d{1,3}),(\d{1,3})\)|don't\(\)|do\(\)/g;
 
 console.log(fs.readFileSync('day3/input.txt', 'utf8').trim().match(regex).map(m => {
     switch (true) {
