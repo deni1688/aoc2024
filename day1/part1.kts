@@ -1,6 +1,6 @@
 import java.io.File
 
-val input = File("./input.txt").readLines()
+val input = File("day1/input.txt").readLines()
 
 fun getColumns(lines: List<String>): List<List<Int>> {
     return lines.fold(
