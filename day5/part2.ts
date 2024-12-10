@@ -23,7 +23,7 @@ function isBad(row: number[]) {
 }
 
 function processRow(badRowSet: Set<number>,row: number[], index: number) {
-    while (isBad(row)) {
+    if (isBad(row)) {
         badRowSet.add(index);
         processRow(badRowSet, row, index);
     }
