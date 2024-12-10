@@ -4,10 +4,21 @@ import kotlin.math.absoluteValue
 
 val input = File("day2/input.txt").readLines()
 
-var badLevels = 0;
+fun checkWithCurrentOrPrevious(report: List<Int>, index: Int, badLevels: Int) = isSafe(
+    report.filterIndexed() { i, _ -> i != index },
+    badLevels
+).or(
+    isSafe(
+        report.filterIndexed() { i, _ -> i != index - 1 },
+        badLevels
+    )
+)
 
-fun isSafe(report: List<Int>): Boolean {
-    var result = true
+fun isSafe(report: List<Int>, badLevels: Int = 0): Boolean {
+    if (badLevels > 1) {
+        return false
+    }
+
     for (index in 1..<report.size) {
         val prev = report[index - 1]
         val current = report[index]
@@ -15,28 +26,23 @@ fun isSafe(report: List<Int>): Boolean {
         val isLast = index == report.size - 1
 
         if (rateOfChange !in 1..3) {
-            result = false
+            return checkWithCurrentOrPrevious(report, index, badLevels+1)
         }
 
         if (!isLast && prev < current && report.last() < current) {
-            result = false
+            return checkWithCurrentOrPrevious(report, index, badLevels+1)
         }
 
         if (!isLast && prev > current && report.last() > current) {
-            result = false
-        }
-
-        if(!result && badLevels < 1) {
-            badLevels++
-            result = isSafe(report.filterIndexed { i, _ -> i != index })
-                    .or(isSafe(report.filterIndexed { i, _ -> i != index - 1 }))
+            return checkWithCurrentOrPrevious(report, index, badLevels+1)
         }
     }
 
-    return result
+    return true;
 }
 
 val reports = input.map { it.split(" ").map(String::toInt) }
 val result = reports.count(::isSafe)
 
 println("$result")
+
