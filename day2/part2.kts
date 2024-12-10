@@ -4,12 +4,17 @@ import kotlin.math.absoluteValue
 
 val input = File("day2/input.txt").readLines()
 
-fun checkWithCurrentOrPrevious(report: List<Int>, index: Int, badLevels: Int) = isSafe(
+fun isSafeWithExcluded(report: List<Int>, index: Int, badLevels: Int) = isSafe(
     report.filterIndexed() { i, _ -> i != index },
     badLevels
 ).or(
     isSafe(
         report.filterIndexed() { i, _ -> i != index - 1 },
+        badLevels
+    )
+).or(
+    isSafe(
+        report.filterIndexed() { i, _ -> i != report.size - 1 },
         badLevels
     )
 )
@@ -26,15 +31,15 @@ fun isSafe(report: List<Int>, badLevels: Int = 0): Boolean {
         val isLast = index == report.size - 1
 
         if (rateOfChange !in 1..3) {
-            return checkWithCurrentOrPrevious(report, index, badLevels+1)
+            return isSafeWithExcluded(report, index, badLevels+1)
         }
 
         if (!isLast && prev < current && report.last() < current) {
-            return checkWithCurrentOrPrevious(report, index, badLevels+1)
+            return isSafeWithExcluded(report, index, badLevels+1)
         }
 
         if (!isLast && prev > current && report.last() > current) {
-            return checkWithCurrentOrPrevious(report, index, badLevels+1)
+            return isSafeWithExcluded(report, index, badLevels+1)
         }
     }
 
