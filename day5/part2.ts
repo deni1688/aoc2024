@@ -1,12 +1,10 @@
 import * as fs from 'fs';
+import * as process from "node:process";
 
 let [rawRules, rawUpdates] = fs.readFileSync('day5/input.txt', 'utf-8').trim().split('\n\n')
 
 const rules= rawRules.split('\n').map(y => y.split('|').map(z => Number(z)))
 const updates = rawUpdates.split('\n').map(x => x.split(',').map(y => Number(y)))
-
-let middlePageCount = 0;
-let badRowSet = new Set<number>();
 
 function isBad(row: number[]) {
     for (let [left, right] of rules) {
@@ -24,19 +22,23 @@ function isBad(row: number[]) {
     return false;
 }
 
-
-for (let [index, row] of updates.entries()) {
-    while(isBad(row)) {
+function processRow(badRowSet: Set<number>,row: number[], index: number) {
+    while (isBad(row)) {
         badRowSet.add(index);
+        processRow(badRowSet, row, index);
     }
+
+    return badRowSet;
 }
 
-badRowSet.forEach((index) => {
-    const row = updates[index];
-    let middleIndex = Math.floor(row.length / 2);
-    middlePageCount += row[middleIndex];
-})
+const count = Array.from(updates.reduce(processRow, new Set<number>())).reduce((acc, rowIndex) => {
+    const row = updates[rowIndex];
+    acc += row[ Math.floor(row.length / 2)];
 
-console.log(middlePageCount);
+    return acc;
+}, 0);
+
+
+console.log(count);
 
 
