@@ -4,18 +4,18 @@ import kotlin.math.absoluteValue
 
 val input = File("day2/input.txt").readLines()
 
-fun isSafeWithExcluded(report: List<Int>, index: Int, badLevels: Int) = isSafe(
+fun isSafeWithExcluded(report: List<Int>, index: Int, badLevels: Int): Boolean = isSafe(
     report.filterIndexed() { i, _ -> i != index },
-    badLevels
+    badLevels + 1
 ).or(
     isSafe(
         report.filterIndexed() { i, _ -> i != index - 1 },
-        badLevels
+        badLevels + 1
     )
 ).or(
     isSafe(
         report.filterIndexed() { i, _ -> i != report.size - 1 },
-        badLevels
+        badLevels + 1
     )
 )
 
@@ -31,15 +31,15 @@ fun isSafe(report: List<Int>, badLevels: Int = 0): Boolean {
         val isLast = index == report.size - 1
 
         if (rateOfChange !in 1..3) {
-            return isSafeWithExcluded(report, index, badLevels+1)
+            return isSafeWithExcluded(report, index, badLevels)
         }
 
         if (!isLast && prev < current && report.last() < current) {
-            return isSafeWithExcluded(report, index, badLevels+1)
+            return isSafeWithExcluded(report, index, badLevels)
         }
 
         if (!isLast && prev > current && report.last() > current) {
-            return isSafeWithExcluded(report, index, badLevels+1)
+            return isSafeWithExcluded(report, index, badLevels)
         }
     }
 
