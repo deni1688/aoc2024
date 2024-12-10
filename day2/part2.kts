@@ -43,7 +43,7 @@ fun isSafe(report: List<Int>, badLevels: Int = 0): Boolean {
         }
     }
 
-    return true;
+    return true
 }
 
 val reports = input.map { it.split(" ").map(String::toInt) }
