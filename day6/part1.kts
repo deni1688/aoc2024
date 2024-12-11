@@ -2,14 +2,44 @@ import java.io.File
 
 val args: List<String> = emptyList()
 val useSample = args.contains("sample")
-val input = File("day6/input${if (useSample) "_sample" else ""}.txt").readLines().map { it.split("").toMutableList() }.toMutableList()
+val positions = mutableSetOf<String>()
+
+val grid = File("day6/input${if (useSample) "_sample" else ""}.txt")
+    .readLines()
+    .map { it.trim().split("").filter { row -> row.isNotEmpty() }.toMutableList() }
+    .toMutableList()
 var guard = "^"
 
+positions.add("${getRow(guard, grid)},${getCol(guard, grid)}")
+
+while (true) {
+    val row = getRow(guard, grid)
+    val col = getCol(guard, grid)
+    val direction = getDirection(guard)
+    val right = getRight(guard)
+
+    positions.add("$row,$col")
+
+    if (nextLeavingGrid(row, direction, col)) break
+
+    val next = grid[row + direction.first][col + direction.second]
+
+    if (next == "#") {
+        grid[row][col] = right
+        guard = right
+    } else {
+        grid[row][col] = "o"
+        grid[row + direction.first][col + direction.second] = guard
+    }
+}
+
+println(positions.size)
+
 fun getRow(guard: String, input: MutableList<MutableList<String>>): Int = input.indexOfFirst { guard in it }
+
 fun getCol(guard: String, input: MutableList<MutableList<String>>): Int = input[getRow(guard, input)].indexOf(guard)
 
-
-val direction = { s: String ->
+fun getDirection(s: String) =
     when (s) {
         "^" -> Pair(-1, 0)
         "v" -> Pair(1, 0)
@@ -17,43 +47,14 @@ val direction = { s: String ->
         ">" -> Pair(0, 1)
         else -> throw IllegalArgumentException("Invalid direction")
     }
-}
 
-while (true) {
-    val row = getRow(guard, input)
-    val col = getCol(guard, input)
-    val current = input[row][col]
-    val dir = direction(current)
-
-    if (row + dir.first !in input.indices || col + dir.second !in input[row].indices) {
-        break
-    }
-
-
-    val right = when (current) {
+fun getRight(c: String) =
+    when (c) {
         "^" -> ">"
         ">" -> "v"
         "v" -> "<"
         else -> "^"
     }
 
-    val next = input[row + dir.first][col + dir.second]
-
-    if (next == "#") {
-        input[row][col] = right
-        guard = right
-    } else {
-        input[row][col] = "o"
-        input[row + dir.first][col + dir.second] = current
-    }
-
-    print("\r")
-    print(input.joinToString("\n") { it.joinToString("") })
-
-    Thread.sleep(100)
-}
-
-
-
-
-
+fun nextLeavingGrid(row: Int, direction: Pair<Int, Int>, col: Int) =
+    row + direction.first !in grid.indices || col + direction.second !in grid[row].indices
