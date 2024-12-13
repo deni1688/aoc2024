@@ -9,97 +9,106 @@ import (
 //go:embed input.txt
 var input string
 
+var Reset = "\033[0m"
+var Green = "\033[32m"
+
 func main() {
-	positions := newSet()
-	guard := "^"
+	grid := newGrid(input, "^")
+	fmt.Println(grid.uniqueVisits())
+}
 
-	grid := fromInput()
-	row, col := findGuardPosition(grid, guard)
-
-	positions.add(fmt.Sprintf("%d,%d", row, col))
-
+func (g *Grid) uniqueVisits() int {
 	for {
-		col, row = findGuardPosition(grid, guard)
-		direction := getDirection(guard)
-		right := getRight(guard)
+		currentPosition := g.findGuard()
+		right := g.getNextGuardTurn()
+		moveDirection := g.getNextGuardMove()
 
-		positions.add(fmt.Sprintf("%d,%d", row, col))
+		g.setVisited(currentPosition)
 
-		if nextLeavingGrid(row, direction, col, grid) {
+		if g.nextMoveOutOfBound(currentPosition, moveDirection) {
 			break
 		}
 
-		next := grid[row+direction[0]][col+direction[1]]
+		next := g.get(currentPosition, moveDirection)
 		if next == "#" {
-			grid[row][col] = right
-			guard = right
+			g.set(currentPosition, right)
+			g.guard = right
 		} else {
-			grid[row][col] = "o"
-			grid[row+direction[0]][col+direction[1]] = guard
+			g.set(currentPosition, fmt.Sprintf("%s%s%s", Green, "o", Reset))
+			g.set(g.next(currentPosition, moveDirection), g.guard)
 		}
 	}
 
-	fmt.Println(positions.size())
+	return len(g.visited)
 }
 
-func fromInput() [][]string {
+type Grid struct {
+	area    [][]string
+	visited map[string]int
+	guard   string
+}
+
+func newGrid(input string, guard string) *Grid {
 	rows := strings.Split(strings.Trim(input, "\n"), "\n")
-	grid := make([][]string, len(rows))
+	area := make([][]string, len(rows))
 	for i, row := range rows {
-		grid[i] = strings.Split(row, "")
+		area[i] = strings.Split(row, "")
 	}
-	return grid
+
+	return &Grid{area, make(map[string]int), guard}
 }
 
-func findGuardPosition(grid [][]string, guard string) (int, int) {
-	for i, row := range grid {
+func (g *Grid) print() {
+	fmt.Printf("\033[0;0H")
+	fmt.Println(g.string())
+}
+
+func (g *Grid) string() string {
+	var sb strings.Builder
+	for _, row := range g.area {
+		sb.WriteString(strings.Join(row, ""))
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
+func (g *Grid) findGuard() coordinate {
+	for i, row := range g.area {
 		for j, cell := range row {
-			if cell == guard {
-				return i, j
+			if cell == g.guard {
+				return coordinate{i, j}
 			}
 		}
 	}
-	return -1, -1
+
+	return coordinate{-1, -1}
 }
 
-type set struct {
-	m map[string]bool
+func (g *Grid) nextMoveOutOfBound(position coordinate, direction coordinate) bool {
+	rowOutBound := position.x+direction.x < 0 || position.x+direction.x >= len(g.area[0])
+	colOutBound := position.y+direction.y < 0 || position.y+direction.y >= len(g.area)
+
+	return rowOutBound || colOutBound
 }
 
-func newSet() *set {
-	return &set{m: make(map[string]bool)}
+func (g *Grid) get(position coordinate, direction coordinate) string {
+	return g.area[position.y+direction.y][position.x+direction.x]
 }
 
-func (s *set) add(v string) {
-	s.m[v] = true
+func (g *Grid) set(position coordinate, value string) {
+	g.area[position.y][position.x] = value
 }
 
-func (s *set) contains(v string) bool {
-	_, ok := s.m[v]
-	return ok
+func (g *Grid) next(position coordinate, direction coordinate) coordinate {
+	return coordinate{position.y + direction.y, position.x + direction.x}
 }
 
-func (s *set) size() int {
-	return len(s.m)
+func (g *Grid) setVisited(position coordinate) {
+	g.visited[position.string()] = g.visited[position.string()] + 1
 }
 
-func getDirection(s string) [2]int {
-	switch s {
-	case "^":
-		return [2]int{-1, 0}
-	case "v":
-		return [2]int{1, 0}
-	case "<":
-		return [2]int{0, -1}
-	case ">":
-		return [2]int{0, 1}
-	default:
-		panic("Invalid direction")
-	}
-}
-
-func getRight(c string) string {
-	switch c {
+func (g *Grid) getNextGuardTurn() string {
+	switch g.guard {
 	case "^":
 		return ">"
 	case ">":
@@ -111,6 +120,23 @@ func getRight(c string) string {
 	}
 }
 
-func nextLeavingGrid(row int, direction [2]int, col int, grid [][]string) bool {
-	return row+direction[0] < 0 || row+direction[0] >= len(grid) || col+direction[1] < 0 || col+direction[1] >= len(grid[row])
+func (g *Grid) getNextGuardMove() coordinate {
+	switch g.guard {
+	case "^":
+		return coordinate{-1, 0}
+	case ">":
+		return coordinate{0, 1}
+	case "v":
+		return coordinate{1, 0}
+	default:
+		return coordinate{0, -1}
+	}
+}
+
+type coordinate struct {
+	y, x int
+}
+
+func (p coordinate) string() string {
+	return fmt.Sprintf("%d,%d", p.y, p.x)
 }
