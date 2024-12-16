@@ -4,9 +4,10 @@ import (
 	_ "embed"
 	"fmt"
 	"strings"
+	"sync"
 )
 
-//go:embed input_sample.txt
+//go:embed input.txt
 var input string
 
 var Reset = "\033[0m"
@@ -16,30 +17,57 @@ func main() {
 	grid := newGrid(input, newGuard("^"))
 	grid.analyzeRoute()
 
-	route := grid.route[1 : len(grid.route)-1]
+	sem := make(chan struct{}, 50)
+	var wg sync.WaitGroup
+	var m sync.Map
+	for i, v := range grid.route {
+		sem <- struct{}{}
+		wg.Add(1)
 
-	for _, v := range route {
-		g := newGrid(input, newGuard("^"))
-		g.setCell(v, "#")
-		g.analyzeRoute()
+		go func() {
+			defer func() {
+				<-sem
+			}()
 
-		if g.willLoop() {
-			fmt.Println("Loop detected")
-			continue
-		}
+			defer wg.Done()
 
+			if work(v) {
+				m.Store(v.String(), true)
+			}
+		}()
+
+		fmt.Printf("Working on %d/%d\n", i, len(grid.route))
 	}
+	wg.Wait()
+
+	size := 0
+	m.Range(func(k, v any) bool {
+		size++
+		return true
+	})
+	fmt.Println("Done", size)
+}
+
+func work(v Pair) bool {
+	g := newGrid(input, newGuard("^"))
+	g.setCell(v, "#")
+	g.analyzeRoute()
+
+	return g.willLoop()
 }
 
 func (g *Grid) analyzeRoute() int {
 	for {
+		if g.willLoop() {
+			break
+		}
 		currentPosition := g.findGuard()
 		right := g.guard.getRightTurn()
 		move := g.guard.getNextMove()
 
 		g.setCellVisited(currentPosition, g.guard)
 
-		if g.isLeaving(currentPosition, move) || g.willLoop() {
+		if g.isLeaving(currentPosition, move) {
 			break
 		}
 
@@ -48,7 +76,7 @@ func (g *Grid) analyzeRoute() int {
 			g.setCell(currentPosition, right.String())
 			g.guard = right
 		} else {
-			g.setCell(currentPosition, fmt.Sprintf("%s%s%s", Green, "o", Reset))
+			g.setCell(currentPosition, fmt.Sprintf("%s%s%s", Green, "+", Reset))
 			g.setCell(g.nextCell(currentPosition, move), g.guard.String())
 		}
 	}
@@ -138,7 +166,7 @@ func (g *Grid) nextCell(position Pair, direction Pair) Pair {
 func (g *Grid) setCellVisited(position Pair, guard *Guard) {
 	g.route = append(g.route, position)
 	key := position.String() + "," + guard.String()
-	g.visitedMap[key] = g.visitedMap[position.String()] + 1
+	g.visitedMap[key] = g.visitedMap[key] + 1
 }
 
 type Guard string
@@ -172,8 +200,10 @@ func (g *Guard) getNextMove() Pair {
 		return Pair{0, 1}
 	case "v":
 		return Pair{1, 0}
-	default:
+	case "<":
 		return Pair{0, -1}
+	default:
+		panic("Invalid guard")
 	}
 }
 
