@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-//go:embed input.txt
+//go:embed input_sample.txt
 var input string
 
 var Reset = "\033[0m"
@@ -14,21 +14,24 @@ var Green = "\033[32m"
 
 func main() {
 	grid := newGrid(input, newGuard("^"))
-	grid.countVisitedCells()
+	grid.analyzeRoute()
 
-	seen := make(map[string]bool)
+	route := grid.route[1 : len(grid.route)-1]
 
-	for _, v := range grid.visitedSlice {
-		if seen[v.String()] {
-			fmt.Println(v)
-			break
+	for _, v := range route {
+		g := newGrid(input, newGuard("^"))
+		g.setCell(v, "#")
+		g.analyzeRoute()
+
+		if g.willLoop() {
+			fmt.Println("Loop detected")
+			continue
 		}
 
-		seen[v.String()] = true
 	}
 }
 
-func (g *Grid) countVisitedCells() int {
+func (g *Grid) analyzeRoute() int {
 	for {
 		currentPosition := g.findGuard()
 		right := g.guard.getRightTurn()
@@ -36,7 +39,7 @@ func (g *Grid) countVisitedCells() int {
 
 		g.setCellVisited(currentPosition, g.guard)
 
-		if g.isLeaving(currentPosition, move) {
+		if g.isLeaving(currentPosition, move) || g.willLoop() {
 			break
 		}
 
@@ -70,10 +73,10 @@ func (g *Grid) willLoop() bool {
 }
 
 type Grid struct {
-	area         [][]string
-	visitedMap   map[string]int
-	visitedSlice []Pair
-	guard        *Guard
+	area       [][]string
+	visitedMap map[string]int
+	route      []Pair
+	guard      *Guard
 }
 
 func newGrid(input string, guard *Guard) *Grid {
@@ -133,8 +136,8 @@ func (g *Grid) nextCell(position Pair, direction Pair) Pair {
 }
 
 func (g *Grid) setCellVisited(position Pair, guard *Guard) {
+	g.route = append(g.route, position)
 	key := position.String() + "," + guard.String()
-	g.visitedSlice = append(g.visitedSlice, position)
 	g.visitedMap[key] = g.visitedMap[position.String()] + 1
 }
 
