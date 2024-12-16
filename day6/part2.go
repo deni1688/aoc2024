@@ -14,22 +14,22 @@ var Green = "\033[32m"
 
 func main() {
 	grid := newGrid(input, newGuard("^"))
-	fmt.Println(grid.uniqueVisits())
+	fmt.Println(grid.countVisitedCells())
 }
 
-func (g *Grid) uniqueVisits() int {
+func (g *Grid) countVisitedCells() int {
 	for {
 		currentPosition := g.findGuard()
 		right := g.guard.getRightTurn()
 		move := g.guard.getNextMove()
 
-		g.setVisited(currentPosition, g.guard)
+		g.setCellVisited(currentPosition, g.guard)
 
 		if g.isLeaving(currentPosition, move) {
 			break
 		}
 
-		next := g.getCell(currentPosition, move)
+		next := g.getCellValue(currentPosition, move)
 		if next == "#" {
 			g.setCell(currentPosition, right.String())
 			g.guard = right
@@ -41,11 +41,22 @@ func (g *Grid) uniqueVisits() int {
 
 	result := make(map[string]int)
 	for k, v := range g.visited {
-		vals := strings.Split(k, ",")
+		vals := strings.Split(k, ",",
+		)
 		result[vals[0]+","+vals[1]] = v
 	}
 
 	return len(result)
+}
+
+func (g *Grid) willLoop() bool {
+	for _, v := range g.visited {
+		if v > 1 {
+			return true
+		}
+	}
+
+	return false
 }
 
 type Grid struct {
@@ -97,7 +108,7 @@ func (g *Grid) isLeaving(position Pair, direction Pair) bool {
 	return rowOutBound || colOutBound
 }
 
-func (g *Grid) getCell(position Pair, direction Pair) string {
+func (g *Grid) getCellValue(position Pair, direction Pair) string {
 
 	return g.area[position.y+direction.y][position.x+direction.x]
 }
@@ -110,7 +121,7 @@ func (g *Grid) nextCell(position Pair, direction Pair) Pair {
 	return Pair{position.y + direction.y, position.x + direction.x}
 }
 
-func (g *Grid) setVisited(position Pair, guard *Guard) {
+func (g *Grid) setCellVisited(position Pair, guard *Guard) {
 	g.visited[position.String()+","+guard.String()] = g.visited[position.String()] + 1
 }
 
