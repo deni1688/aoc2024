@@ -25,7 +25,7 @@ func (g *Grid) uniqueVisits() int {
 
 		g.setVisited(currentPosition, g.guard)
 
-		if g.nextMoveOutOfBound(currentPosition, move) {
+		if g.isLeaving(currentPosition, move) {
 			break
 		}
 
@@ -39,12 +39,13 @@ func (g *Grid) uniqueVisits() int {
 		}
 	}
 
-	uniqueVisits := make(map[string]int)
+	result := make(map[string]int)
 	for k, v := range g.visited {
 		vals := strings.Split(k, ",")
-		uniqueVisits[vals[0]+","+vals[1]] = v
+		result[vals[0]+","+vals[1]] = v
 	}
-	return len(uniqueVisits)
+
+	return len(result)
 }
 
 type Grid struct {
@@ -89,7 +90,7 @@ func (g *Grid) findGuard() Pair {
 	return Pair{-1, -1}
 }
 
-func (g *Grid) nextMoveOutOfBound(position Pair, direction Pair) bool {
+func (g *Grid) isLeaving(position Pair, direction Pair) bool {
 	rowOutBound := position.x+direction.x < 0 || position.x+direction.x >= len(g.area[0])
 	colOutBound := position.y+direction.y < 0 || position.y+direction.y >= len(g.area)
 
