@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-//go:embed input_sample.txt
+//go:embed input.txt
 var input string
 
 var Reset = "\033[0m"
@@ -14,7 +14,18 @@ var Green = "\033[32m"
 
 func main() {
 	grid := newGrid(input, newGuard("^"))
-	fmt.Println(grid.countVisitedCells())
+	grid.countVisitedCells()
+
+	seen := make(map[string]bool)
+
+	for _, v := range grid.visitedSlice {
+		if seen[v.String()] {
+			fmt.Println(v)
+			break
+		}
+
+		seen[v.String()] = true
+	}
 }
 
 func (g *Grid) countVisitedCells() int {
@@ -40,9 +51,8 @@ func (g *Grid) countVisitedCells() int {
 	}
 
 	result := make(map[string]int)
-	for k, v := range g.visited {
-		vals := strings.Split(k, ",",
-		)
+	for k, v := range g.visitedMap {
+		vals := strings.Split(k, ",")
 		result[vals[0]+","+vals[1]] = v
 	}
 
@@ -50,7 +60,7 @@ func (g *Grid) countVisitedCells() int {
 }
 
 func (g *Grid) willLoop() bool {
-	for _, v := range g.visited {
+	for _, v := range g.visitedMap {
 		if v > 1 {
 			return true
 		}
@@ -60,9 +70,10 @@ func (g *Grid) willLoop() bool {
 }
 
 type Grid struct {
-	area    [][]string
-	visited map[string]int
-	guard   *Guard
+	area         [][]string
+	visitedMap   map[string]int
+	visitedSlice []Pair
+	guard        *Guard
 }
 
 func newGrid(input string, guard *Guard) *Grid {
@@ -72,7 +83,7 @@ func newGrid(input string, guard *Guard) *Grid {
 		area[i] = strings.Split(row, "")
 	}
 
-	return &Grid{area, make(map[string]int), guard}
+	return &Grid{area, make(map[string]int), make([]Pair, 0), guard}
 }
 
 func (g *Grid) print() {
@@ -122,7 +133,9 @@ func (g *Grid) nextCell(position Pair, direction Pair) Pair {
 }
 
 func (g *Grid) setCellVisited(position Pair, guard *Guard) {
-	g.visited[position.String()+","+guard.String()] = g.visited[position.String()] + 1
+	key := position.String() + "," + guard.String()
+	g.visitedSlice = append(g.visitedSlice, position)
+	g.visitedMap[key] = g.visitedMap[position.String()] + 1
 }
 
 type Guard string
