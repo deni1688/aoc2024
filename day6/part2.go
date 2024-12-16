@@ -31,11 +31,11 @@ func (g *Grid) uniqueVisits() int {
 
 		next := g.get(currentPosition, move)
 		if next == "#" {
-			g.set(currentPosition, right.string())
+			g.set(currentPosition, right.String())
 			g.guard = right
 		} else {
 			g.set(currentPosition, fmt.Sprintf("%s%s%s", Green, "o", Reset))
-			g.set(g.next(currentPosition, move), g.guard.string())
+			g.set(g.next(currentPosition, move), g.guard.String())
 		}
 	}
 
@@ -60,10 +60,10 @@ func newGrid(input string, guard *Guard) *Grid {
 
 func (g *Grid) print() {
 	fmt.Printf("\033[0;0H")
-	fmt.Println(g.string())
+	fmt.Println(g.String())
 }
 
-func (g *Grid) string() string {
+func (g *Grid) String() string {
 	var sb strings.Builder
 	for _, row := range g.area {
 		sb.WriteString(strings.Join(row, ""))
@@ -72,39 +72,39 @@ func (g *Grid) string() string {
 	return sb.String()
 }
 
-func (g *Grid) findGuard() Position {
+func (g *Grid) findGuard() Pair {
 	for i, row := range g.area {
 		for j, cell := range row {
 			if g.guard.equals(cell) {
-				return Position{i, j}
+				return Pair{i, j}
 			}
 		}
 	}
 
-	return Position{-1, -1}
+	return Pair{-1, -1}
 }
 
-func (g *Grid) nextMoveOutOfBound(position Position, direction Position) bool {
+func (g *Grid) nextMoveOutOfBound(position Pair, direction Pair) bool {
 	rowOutBound := position.x+direction.x < 0 || position.x+direction.x >= len(g.area[0])
 	colOutBound := position.y+direction.y < 0 || position.y+direction.y >= len(g.area)
 
 	return rowOutBound || colOutBound
 }
 
-func (g *Grid) get(position Position, direction Position) string {
+func (g *Grid) get(position Pair, direction Pair) string {
 	return g.area[position.y+direction.y][position.x+direction.x]
 }
 
-func (g *Grid) set(position Position, value string) {
+func (g *Grid) set(position Pair, value string) {
 	g.area[position.y][position.x] = value
 }
 
-func (g *Grid) next(position Position, direction Position) Position {
-	return Position{position.y + direction.y, position.x + direction.x}
+func (g *Grid) next(position Pair, direction Pair) Pair {
+	return Pair{position.y + direction.y, position.x + direction.x}
 }
 
-func (g *Grid) setVisited(position Position) {
-	g.visited[position.string()] = g.visited[position.string()] + 1
+func (g *Grid) setVisited(position Pair) {
+	g.visited[position.String()] = g.visited[position.String()] + 1
 }
 
 type Guard string
@@ -113,7 +113,7 @@ func newGuard(s string) *Guard {
 	return (*Guard)(&s)
 }
 
-func (g *Guard) string() string {
+func (g *Guard) String() string {
 	return string(*g)
 }
 
@@ -130,16 +130,16 @@ func (g *Guard) getRightTurn() *Guard {
 	}
 }
 
-func (g *Guard) getNextMove() Position {
+func (g *Guard) getNextMove() Pair {
 	switch *g {
 	case "^":
-		return Position{-1, 0}
+		return Pair{-1, 0}
 	case ">":
-		return Position{0, 1}
+		return Pair{0, 1}
 	case "v":
-		return Position{1, 0}
+		return Pair{1, 0}
 	default:
-		return Position{0, -1}
+		return Pair{0, -1}
 	}
 }
 
@@ -147,10 +147,10 @@ func (g *Guard) equals(s string) bool {
 	return string(*g) == s
 }
 
-type Position struct {
+type Pair struct {
 	y, x int
 }
 
-func (p Position) string() string {
+func (p Pair) String() string {
 	return fmt.Sprintf("%d,%d", p.y, p.x)
 }
