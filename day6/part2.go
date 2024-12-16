@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-//go:embed input.txt
+//go:embed input_sample.txt
 var input string
 
 var Reset = "\033[0m"
@@ -23,23 +23,28 @@ func (g *Grid) uniqueVisits() int {
 		right := g.guard.getRightTurn()
 		move := g.guard.getNextMove()
 
-		g.setVisited(currentPosition)
+		g.setVisited(currentPosition, g.guard)
 
 		if g.nextMoveOutOfBound(currentPosition, move) {
 			break
 		}
 
-		next := g.get(currentPosition, move)
+		next := g.getCell(currentPosition, move)
 		if next == "#" {
-			g.set(currentPosition, right.String())
+			g.setCell(currentPosition, right.String())
 			g.guard = right
 		} else {
-			g.set(currentPosition, fmt.Sprintf("%s%s%s", Green, "o", Reset))
-			g.set(g.next(currentPosition, move), g.guard.String())
+			g.setCell(currentPosition, fmt.Sprintf("%s%s%s", Green, "o", Reset))
+			g.setCell(g.nextCell(currentPosition, move), g.guard.String())
 		}
 	}
 
-	return len(g.visited)
+	uniqueVisits := make(map[string]int)
+	for k, v := range g.visited {
+		vals := strings.Split(k, ",")
+		uniqueVisits[vals[0]+","+vals[1]] = v
+	}
+	return len(uniqueVisits)
 }
 
 type Grid struct {
@@ -91,20 +96,21 @@ func (g *Grid) nextMoveOutOfBound(position Pair, direction Pair) bool {
 	return rowOutBound || colOutBound
 }
 
-func (g *Grid) get(position Pair, direction Pair) string {
+func (g *Grid) getCell(position Pair, direction Pair) string {
+
 	return g.area[position.y+direction.y][position.x+direction.x]
 }
 
-func (g *Grid) set(position Pair, value string) {
+func (g *Grid) setCell(position Pair, value string) {
 	g.area[position.y][position.x] = value
 }
 
-func (g *Grid) next(position Pair, direction Pair) Pair {
+func (g *Grid) nextCell(position Pair, direction Pair) Pair {
 	return Pair{position.y + direction.y, position.x + direction.x}
 }
 
-func (g *Grid) setVisited(position Pair) {
-	g.visited[position.String()] = g.visited[position.String()] + 1
+func (g *Grid) setVisited(position Pair, guard *Guard) {
+	g.visited[position.String()+","+guard.String()] = g.visited[position.String()] + 1
 }
 
 type Guard string
