@@ -120,7 +120,7 @@ func (g *Grid) analyzeRoute() bool {
 
 		g.visiting(g.current)
 
-		if g.isLeaving(g.current, move) {
+		if g.leaving(g.current, move) {
 			break
 		}
 
@@ -165,7 +165,7 @@ func (g *Grid) String() string {
 	return sb.String()
 }
 
-func (g *Grid) isLeaving(position Pair, direction Pair) bool {
+func (g *Grid) leaving(position Pair, direction Pair) bool {
 	rowOutBound := position.x+direction.x < 0 || position.x+direction.x >= len(g.area[0])
 	colOutBound := position.y+direction.y < 0 || position.y+direction.y >= len(g.area)
 
