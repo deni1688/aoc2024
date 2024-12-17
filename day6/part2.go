@@ -3,8 +3,10 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 //go:embed input.txt
@@ -12,98 +14,62 @@ var input string
 
 var Reset = "\033[0m"
 var Green = "\033[32m"
+var Trail = Green + "o" + Reset
 
 func main() {
 	grid := newGrid(input, newGuard("^"))
-	grid.analyzeRoute()
+	// time it
+	s := time.Now()
+	res := grid.analyzeRoute(true)
+	fmt.Println("Time", time.Since(s))
 
-	sem := make(chan struct{}, 50)
+	sem := make(Semaphore, 7000)
+	posCh := make(chan Pair)
+	m := map[string]bool{}
+
+	go func() {
+		for v := range posCh {
+			m[v.String()] = true
+		}
+	}()
+
 	var wg sync.WaitGroup
-	var m sync.Map
-	for i, v := range grid.route {
-		sem <- struct{}{}
+
+	for _, v := range res.route {
+		v := v
 		wg.Add(1)
+		sem.Acquire()
 
 		go func() {
-			defer func() {
-				<-sem
-			}()
-
+			defer sem.Release()
 			defer wg.Done()
 
-			if work(v) {
-				m.Store(v.String(), true)
+			g := newGrid(input, newGuard("^"))
+			g.setCell(v, "#")
+			r := g.analyzeRoute(false)
+			if r.loop {
+				posCh <- v
 			}
 		}()
-
-		fmt.Printf("Working on %d/%d\n", i, len(grid.route))
 	}
 	wg.Wait()
 
-	size := 0
-	m.Range(func(k, v any) bool {
-		size++
-		return true
-	})
-	fmt.Println("Done", size)
+	fmt.Println("Done", len(m))
 }
 
-func work(v Pair) bool {
-	g := newGrid(input, newGuard("^"))
-	g.setCell(v, "#")
-	g.analyzeRoute()
+type Semaphore chan struct{}
 
-	return g.willLoop()
+func (s Semaphore) Acquire() {
+	s <- struct{}{}
 }
 
-func (g *Grid) analyzeRoute() int {
-	for {
-		if g.willLoop() {
-			break
-		}
-		currentPosition := g.findGuard()
-		right := g.guard.getRightTurn()
-		move := g.guard.getNextMove()
-
-		g.setCellVisited(currentPosition, g.guard)
-
-		if g.isLeaving(currentPosition, move) {
-			break
-		}
-
-		next := g.getCellValue(currentPosition, move)
-		if next == "#" {
-			g.setCell(currentPosition, right.String())
-			g.guard = right
-		} else {
-			g.setCell(currentPosition, fmt.Sprintf("%s%s%s", Green, "+", Reset))
-			g.setCell(g.nextCell(currentPosition, move), g.guard.String())
-		}
-	}
-
-	result := make(map[string]int)
-	for k, v := range g.visitedMap {
-		vals := strings.Split(k, ",")
-		result[vals[0]+","+vals[1]] = v
-	}
-
-	return len(result)
-}
-
-func (g *Grid) willLoop() bool {
-	for _, v := range g.visitedMap {
-		if v > 1 {
-			return true
-		}
-	}
-
-	return false
+func (s Semaphore) Release() {
+	<-s
 }
 
 type Grid struct {
 	area       [][]string
 	visitedMap map[string]int
-	route      []Pair
 	guard      *Guard
 }
 
@@ -114,7 +80,73 @@ func newGrid(input string, guard *Guard) *Grid {
 		area[i] = strings.Split(row, "")
 	}
 
-	return &Grid{area, make(map[string]int), make([]Pair, 0), guard}
+	return &Grid{area, make(map[string]int), guard}
+}
+
+type AnalyzeResult struct {
+	route []Pair
+	loop  bool
+}
+
+func (g *Grid) analyzeRoute(calcRoute bool) AnalyzeResult {
+	for {
+		currentPosition := g.findGuard()
+		right := g.guard.getRightTurn()
+		move := g.guard.getNextMove()
+
+		g.setCellVisited(currentPosition, g.guard)
+
+		if g.willLoop() {
+			return AnalyzeResult{
+				route: nil,
+				loop:  true,
+			}
+		}
+
+		if g.isLeaving(currentPosition, move) {
+			break
+		}
+
+		next := g.getCellValue(currentPosition, move)
+		if next == "#" {
+			g.setCell(currentPosition, right.String())
+			g.guard = right
+		} else {
+			g.setCell(currentPosition, Trail)
+			g.setCell(g.nextCell(currentPosition, move), g.guard.String())
+		}
+	}
+
+	if !calcRoute {
+		return AnalyzeResult{
+			route: nil,
+			loop:  false,
+		}
+	}
+
+	result := make([]Pair, 0)
+
+	for k := range g.visitedMap {
+		pair := strings.Split(k, ",")
+		y, _ := strconv.Atoi(pair[0])
+		x, _ := strconv.Atoi(pair[1])
+		result = append(result, Pair{y, x})
+	}
+
+	return AnalyzeResult{
+		route: result,
+		loop:  false,
+	}
+}
+
+func (g *Grid) willLoop() bool {
+	for _, visited := range g.visitedMap {
+		if visited > 1 {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (g *Grid) print() {
@@ -164,7 +196,6 @@ func (g *Grid) nextCell(position Pair, direction Pair) Pair {
 }
 
 func (g *Grid) setCellVisited(position Pair, guard *Guard) {
-	g.route = append(g.route, position)
 	key := position.String() + "," + guard.String()
 	g.visitedMap[key] = g.visitedMap[key] + 1
 }
