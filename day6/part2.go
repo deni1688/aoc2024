@@ -118,12 +118,13 @@ func (g *Grid) analyzeRoute() bool {
 		right := g.guard.turnRight()
 		move := g.guard.nextMove()
 
-		g.setCellVisited(g.current)
+		g.visiting(g.current)
+
 		if g.isLeaving(g.current, move) {
 			break
 		}
 
-		next := g.getCellValue(g.current, move)
+		next := g.nextCellValue(g.current, move)
 		if next == "#" {
 			g.setCell(g.current, right.String())
 			g.guard = right
@@ -134,7 +135,7 @@ func (g *Grid) analyzeRoute() bool {
 			g.current = cell
 		}
 
-		if g.willLoop(g.current) {
+		if g.loopDetected(g.current) {
 			return true
 		}
 	}
@@ -142,7 +143,7 @@ func (g *Grid) analyzeRoute() bool {
 	return false
 }
 
-func (g *Grid) willLoop(pos Pair) bool {
+func (g *Grid) loopDetected(pos Pair) bool {
 	if v, ok := g.visitedMap[pos.String()]; ok {
 		return v.count >= 4
 	}
@@ -171,7 +172,7 @@ func (g *Grid) isLeaving(position Pair, direction Pair) bool {
 	return rowOutBound || colOutBound
 }
 
-func (g *Grid) getCellValue(position Pair, direction Pair) string {
+func (g *Grid) nextCellValue(position Pair, direction Pair) string {
 
 	return g.area[position.y+direction.y][position.x+direction.x]
 }
@@ -184,7 +185,7 @@ func (g *Grid) nextCell(position Pair, direction Pair) Pair {
 	return Pair{position.y + direction.y, position.x + direction.x}
 }
 
-func (g *Grid) setCellVisited(pos Pair) {
+func (g *Grid) visiting(pos Pair) {
 	if v, ok := g.visitedMap[pos.String()]; ok {
 		v.count++
 		g.visitedMap[pos.String()] = v
