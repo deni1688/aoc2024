@@ -115,24 +115,18 @@ func newGrid(area [][]string, start Pair) *Grid {
 
 func (g *Grid) analyzeRoute() bool {
 	for {
-		right := g.guard.turnRight()
-		move := g.guard.nextMove()
-
 		g.visiting(g.current)
 
-		if g.leaving(g.current, move) {
+		next := g.guard.nextMove()
+		if g.leaving(g.current, next) {
 			break
 		}
 
-		next := g.nextCellValue(g.current, move)
-		if next == "#" {
-			g.setCell(g.current, right.String())
-			g.guard = right
+		nextValue := g.nextCellValue(g.current, next)
+		if nextValue == "#" {
+			g.guard.turnRight(g)
 		} else {
-			g.setCell(g.current, Trail)
-			cell := g.nextCell(g.current, move)
-			g.setCell(cell, g.guard.String())
-			g.current = cell
+			g.guard.move(g, next)
 		}
 
 		if g.loopDetected(g.current) {
@@ -205,17 +199,28 @@ func (g *Guard) String() string {
 	return string(*g)
 }
 
-func (g *Guard) turnRight() *Guard {
-	switch *g {
-	case "^":
-		return newGuard(">")
-	case ">":
-		return newGuard("v")
-	case "v":
-		return newGuard("<")
-	default:
-		return newGuard("^")
-	}
+func (g *Guard) turnRight(grid *Grid) {
+	guard := func() *Guard {
+		switch *g {
+		case "^":
+			return newGuard(">")
+		case ">":
+			return newGuard("v")
+		case "v":
+			return newGuard("<")
+		default:
+			return newGuard("^")
+		}
+	}()
+	grid.setCell(grid.current, guard.String())
+	grid.guard = guard
+}
+
+func (g *Guard) move(grid *Grid, next Pair) {
+	grid.setCell(grid.current, Trail)
+	cell := grid.nextCell(grid.current, next)
+	grid.setCell(cell, grid.guard.String())
+	grid.current = cell
 }
 
 func (g *Guard) nextMove() Pair {
@@ -231,10 +236,6 @@ func (g *Guard) nextMove() Pair {
 	default:
 		panic("Invalid guard")
 	}
-}
-
-func (g *Guard) equals(s string) bool {
-	return string(*g) == s
 }
 
 type Pair struct {
