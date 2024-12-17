@@ -3,7 +3,6 @@ package main
 import (
 	_ "embed"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,26 +16,25 @@ var Green = "\033[32m"
 var Trail = Green + "o" + Reset
 
 func main() {
-	grid := newGrid(input, newGuard("^"))
-	// time it
+	area := parseInput()
+	start := findStart(area)
+	grid := newGrid(deepCopy(area), start)
 	s := time.Now()
-	res := grid.analyzeRoute(true)
-	fmt.Println("Time", time.Since(s))
+	grid.analyzeRoute()
+	fmt.Println("Unique cells", len(grid.visitedMap), "Initial Route", time.Since(s))
 
-	sem := make(Semaphore, 7000)
+	sem := make(Semaphore, 1000)
 	posCh := make(chan Pair)
-	m := map[string]bool{}
+	result := 0
 
 	go func() {
-		for v := range posCh {
-			m[v.String()] = true
+		for range posCh {
+			result++
 		}
 	}()
 
 	var wg sync.WaitGroup
-
-	for _, v := range res.route {
-		v := v
+	for _, v := range grid.visitedMap {
 		wg.Add(1)
 		sem.Acquire()
 
@@ -44,17 +42,49 @@ func main() {
 			defer sem.Release()
 			defer wg.Done()
 
-			g := newGrid(input, newGuard("^"))
-			g.setCell(v, "#")
-			r := g.analyzeRoute(false)
-			if r.loop {
-				posCh <- v
+			g := newGrid(deepCopy(area), start)
+			g.setCell(v.pos, "#")
+
+			if g.analyzeRoute() {
+				posCh <- v.pos
 			}
 		}()
 	}
 	wg.Wait()
 
-	fmt.Println("Done", len(m))
+	fmt.Println("Result", result, "Full Analysis", time.Since(s))
+}
+
+func findStart(area [][]string) Pair {
+	for i, row := range area {
+		for j, cell := range row {
+			if cell == "^" {
+				return Pair{i, j}
+			}
+		}
+	}
+
+	return Pair{-1, -1}
+}
+
+func deepCopy(input [][]string) [][]string {
+	copySlice := make([][]string, len(input))
+
+	for i, innerSlice := range input {
+		copySlice[i] = make([]string, len(innerSlice))
+		copy(copySlice[i], innerSlice)
+	}
+
+	return copySlice
+}
+
+func parseInput() [][]string {
+	rows := strings.Split(strings.Trim(input, "\n"), "\n")
+	area := make([][]string, len(rows))
+	for i, row := range rows {
+		area[i] = strings.Split(row, "")
+	}
+	return area
 }
 
 type Semaphore chan struct{}
@@ -67,83 +97,54 @@ func (s Semaphore) Release() {
 	<-s
 }
 
+type Visit struct {
+	pos   Pair
+	count int
+}
+
 type Grid struct {
 	area       [][]string
-	visitedMap map[string]int
+	visitedMap map[string]Visit
 	guard      *Guard
+	current    Pair
 }
 
-func newGrid(input string, guard *Guard) *Grid {
-	rows := strings.Split(strings.Trim(input, "\n"), "\n")
-	area := make([][]string, len(rows))
-	for i, row := range rows {
-		area[i] = strings.Split(row, "")
-	}
-
-	return &Grid{area, make(map[string]int), guard}
+func newGrid(area [][]string, start Pair) *Grid {
+	return &Grid{area, make(map[string]Visit), newGuard("^"), start}
 }
 
-type AnalyzeResult struct {
-	route []Pair
-	loop  bool
-}
-
-func (g *Grid) analyzeRoute(calcRoute bool) AnalyzeResult {
+func (g *Grid) analyzeRoute() bool {
 	for {
-		currentPosition := g.findGuard()
-		right := g.guard.getRightTurn()
-		move := g.guard.getNextMove()
+		right := g.guard.turnRight()
+		move := g.guard.nextMove()
 
-		g.setCellVisited(currentPosition, g.guard)
-
-		if g.willLoop() {
-			return AnalyzeResult{
-				route: nil,
-				loop:  true,
-			}
-		}
-
-		if g.isLeaving(currentPosition, move) {
+		g.setCellVisited(g.current)
+		if g.isLeaving(g.current, move) {
 			break
 		}
 
-		next := g.getCellValue(currentPosition, move)
+		next := g.getCellValue(g.current, move)
 		if next == "#" {
-			g.setCell(currentPosition, right.String())
+			g.setCell(g.current, right.String())
 			g.guard = right
 		} else {
-			g.setCell(currentPosition, Trail)
-			g.setCell(g.nextCell(currentPosition, move), g.guard.String())
+			g.setCell(g.current, Trail)
+			cell := g.nextCell(g.current, move)
+			g.setCell(cell, g.guard.String())
+			g.current = cell
 		}
-	}
 
-	if !calcRoute {
-		return AnalyzeResult{
-			route: nil,
-			loop:  false,
-		}
-	}
-
-	result := make([]Pair, 0)
-
-	for k := range g.visitedMap {
-		pair := strings.Split(k, ",")
-		y, _ := strconv.Atoi(pair[0])
-		x, _ := strconv.Atoi(pair[1])
-		result = append(result, Pair{y, x})
-	}
-
-	return AnalyzeResult{
-		route: result,
-		loop:  false,
-	}
-}
-
-func (g *Grid) willLoop() bool {
-	for _, visited := range g.visitedMap {
-		if visited > 1 {
+		if g.willLoop(g.current) {
 			return true
 		}
+	}
+
+	return false
+}
+
+func (g *Grid) willLoop(pos Pair) bool {
+	if v, ok := g.visitedMap[pos.String()]; ok {
+		return v.count >= 4
 	}
 
 	return false
@@ -161,18 +162,6 @@ func (g *Grid) String() string {
 		sb.WriteString("\n")
 	}
 	return sb.String()
-}
-
-func (g *Grid) findGuard() Pair {
-	for i, row := range g.area {
-		for j, cell := range row {
-			if g.guard.equals(cell) {
-				return Pair{i, j}
-			}
-		}
-	}
-
-	return Pair{-1, -1}
 }
 
 func (g *Grid) isLeaving(position Pair, direction Pair) bool {
@@ -195,9 +184,14 @@ func (g *Grid) nextCell(position Pair, direction Pair) Pair {
 	return Pair{position.y + direction.y, position.x + direction.x}
 }
 
-func (g *Grid) setCellVisited(position Pair, guard *Guard) {
-	key := position.String() + "," + guard.String()
-	g.visitedMap[key] = g.visitedMap[key] + 1
+func (g *Grid) setCellVisited(pos Pair) {
+	if v, ok := g.visitedMap[pos.String()]; ok {
+		v.count++
+		g.visitedMap[pos.String()] = v
+	} else {
+		g.visitedMap[pos.String()] = Visit{pos, 1}
+	}
+
 }
 
 type Guard string
@@ -210,7 +204,7 @@ func (g *Guard) String() string {
 	return string(*g)
 }
 
-func (g *Guard) getRightTurn() *Guard {
+func (g *Guard) turnRight() *Guard {
 	switch *g {
 	case "^":
 		return newGuard(">")
@@ -223,7 +217,7 @@ func (g *Guard) getRightTurn() *Guard {
 	}
 }
 
-func (g *Guard) getNextMove() Pair {
+func (g *Guard) nextMove() Pair {
 	switch *g {
 	case "^":
 		return Pair{-1, 0}
