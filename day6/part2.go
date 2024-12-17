@@ -126,7 +126,7 @@ func (g *Grid) analyzeRoute() bool {
 		if nextValue == "#" {
 			g.guard.turnRight(g)
 		} else {
-			g.guard.move(g, next)
+			g.guard.moveForward(g, next)
 		}
 
 		if g.loopDetected(g.current) {
@@ -216,7 +216,7 @@ func (g *Guard) turnRight(grid *Grid) {
 	grid.guard = guard
 }
 
-func (g *Guard) move(grid *Grid, next Pair) {
+func (g *Guard) moveForward(grid *Grid, next Pair) {
 	grid.setCell(grid.current, Trail)
 	cell := grid.nextCell(grid.current, next)
 	grid.setCell(cell, grid.guard.String())
