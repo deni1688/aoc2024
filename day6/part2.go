@@ -21,7 +21,7 @@ func main() {
 	grid := newGrid(deepCopy(area), start)
 	s := time.Now()
 	grid.analyzeRoute()
-	fmt.Println("Unique cells", len(grid.visitedMap), "Initial Route", time.Since(s))
+	fmt.Println("Unique cells", len(grid.visited), "Initial Route", time.Since(s))
 
 	sem := make(Semaphore, 1000)
 	posCh := make(chan Pair)
@@ -34,7 +34,7 @@ func main() {
 	}()
 
 	var wg sync.WaitGroup
-	for _, v := range grid.visitedMap {
+	for _, v := range grid.visited {
 		wg.Add(1)
 		sem.Acquire()
 
@@ -103,10 +103,10 @@ type Visit struct {
 }
 
 type Grid struct {
-	area       [][]string
-	visitedMap map[string]Visit
-	guard      *Guard
-	current    Pair
+	area    [][]string
+	visited map[string]Visit
+	guard   *Guard
+	current Pair
 }
 
 func newGrid(area [][]string, start Pair) *Grid {
@@ -115,6 +115,10 @@ func newGrid(area [][]string, start Pair) *Grid {
 
 func (g *Grid) analyzeRoute() bool {
 	for {
+		if g.loopDetected(g.current) {
+			return true
+		}
+
 		g.visiting(g.current)
 
 		next := g.guard.nextMove()
@@ -124,13 +128,9 @@ func (g *Grid) analyzeRoute() bool {
 
 		nextValue := g.nextCellValue(g.current, next)
 		if nextValue == "#" {
-			g.guard.turnRight(g)
+			g.turnGuardRight()
 		} else {
-			g.guard.moveForward(g, next)
-		}
-
-		if g.loopDetected(g.current) {
-			return true
+			g.moveGuardForward(next)
 		}
 	}
 
@@ -138,7 +138,7 @@ func (g *Grid) analyzeRoute() bool {
 }
 
 func (g *Grid) loopDetected(pos Pair) bool {
-	if v, ok := g.visitedMap[pos.String()]; ok {
+	if v, ok := g.visited[pos.String()]; ok {
 		return v.count >= 4
 	}
 
@@ -180,28 +180,18 @@ func (g *Grid) nextCell(position Pair, direction Pair) Pair {
 }
 
 func (g *Grid) visiting(pos Pair) {
-	if v, ok := g.visitedMap[pos.String()]; ok {
+	if v, ok := g.visited[pos.String()]; ok {
 		v.count++
-		g.visitedMap[pos.String()] = v
+		g.visited[pos.String()] = v
 	} else {
-		g.visitedMap[pos.String()] = Visit{pos, 1}
+		g.visited[pos.String()] = Visit{pos, 1}
 	}
 
 }
 
-type Guard string
-
-func newGuard(s string) *Guard {
-	return (*Guard)(&s)
-}
-
-func (g *Guard) String() string {
-	return string(*g)
-}
-
-func (g *Guard) turnRight(grid *Grid) {
+func (g *Grid) turnGuardRight() {
 	guard := func() *Guard {
-		switch *g {
+		switch *g.guard {
 		case "^":
 			return newGuard(">")
 		case ">":
@@ -212,15 +202,25 @@ func (g *Guard) turnRight(grid *Grid) {
 			return newGuard("^")
 		}
 	}()
-	grid.setCell(grid.current, guard.String())
-	grid.guard = guard
+	g.setCell(g.current, guard.String())
+	g.guard = guard
 }
 
-func (g *Guard) moveForward(grid *Grid, next Pair) {
-	grid.setCell(grid.current, Trail)
-	cell := grid.nextCell(grid.current, next)
-	grid.setCell(cell, grid.guard.String())
-	grid.current = cell
+func (g *Grid) moveGuardForward(next Pair) {
+	g.setCell(g.current, Trail)
+	cell := g.nextCell(g.current, next)
+	g.setCell(cell, g.guard.String())
+	g.current = cell
+}
+
+type Guard string
+
+func newGuard(s string) *Guard {
+	return (*Guard)(&s)
+}
+
+func (g *Guard) String() string {
+	return string(*g)
 }
 
 func (g *Guard) nextMove() Pair {
