@@ -10,8 +10,6 @@ val grid = File("day6/input${if (useSample) "_sample" else ""}.txt")
     .toMutableList()
 var guard = "^"
 
-positions.add("${getRow(guard, grid)},${getCol(guard, grid)}")
-
 while (true) {
     val row = getRow(guard, grid)
     val col = getCol(guard, grid)
