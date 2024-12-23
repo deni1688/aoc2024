@@ -1,132 +1,55 @@
 import java.io.File
 
-val lines = parse(File("input.txt").readLines())
+val lines = File("input.txt").readLines()
 
-var total: Long = 0
-
-for (i in 0..lines.size - 1) {
-    val row = lines[i]
-    val target = row[0]
-
-    var result = check(row, "+");
-
-    if (result == target) {
-        println("Row $i is solved with +")
-        total += target
-        continue
-    }
-
-    result = check(row, "*");
-
-    if (result == target) {
-        println("Row $i is solved with *")
-        total += target
-        continue
-    }
-
-    result = check(row, "+*");
-
-    if (result == target) {
-        println("Row $i is solved with +*")
-        total += target
-        continue
-    }
-
-    result = check(row, "*+");
-
-    if (result == target) {
-        println("Row $i is solved with *+")
-        total += target
-        continue
-    }
-
-    result = checkRecursive(target, row, "+", 0);
-
-    if (result == target) {
-        println("Row $i is solved with + recursive")
-        total += target
-        continue
-    }
-
-    result = checkRecursive(target, row, "*", 0);
-
-    if (result == target) {
-        println("Row $i is solved with * recursive")
-        total += target
-    }
-}
-
-fun checkRecursive(target: Long, row: List<Long>, operator: String, index: Int): Long {
-    var result: Long = 0
-
-    for (j in 1..row.size - 1) {
-        if (j == 1) {
-            result = row[j]
-        } else {
-            if (operator == "+") {
-                if (j < index) {
-                    result += row[j]
-                } else {
-                    result *= row[j]
-                }
-            } else {
-                if (j < index) {
-                    result *= row[j]
-                } else {
-                    result += row[j]
-                }
-            }
-        }
-    }
-
-    if(result == target || index == row.size - 1) {
-        return result
-    }
-
-    return checkRecursive(target, row, operator, index + 1)
-}
-
-println("Total: $total")
-
-fun parse(input: List<String>) = input.map(String::trim).map {
-    it.split(": ")
-        .mapIndexed() { index, s -> if (index == 1) s.split(" ") else listOf(s) }
-        .flatten()
-        .map(String::toLong)
-}
-
-
-fun check(row: List<Long>, operator: String): Long {
-    var result: Long = 0
-    var nextOp = operator.first().toString()
-    for (j in 1..row.size - 1) {
-        if (j == 1) {
-            result = row[j]
-        } else {
-            when (operator) {
-                "+" -> result += row[j]
-                "*" -> result *= row[j]
-                "+*" -> {
-                    if (nextOp == "+") {
-                        result += row[j]
-                        nextOp = "*"
-                    } else {
-                        result *= row[j]
-                        nextOp = "+"
-                    }
-                }
-
-                "*+" -> {
-                    if (nextOp == "*") {
-                        result *= row[j]
-                        nextOp = "+"
-                    } else {
-                        result += row[j]
-                        nextOp = "*"
-                    }
-                }
-            }
+fun evaluateExpression(numbers: List<Long>, operators: List<Char>): Long {
+    var result = numbers[0]
+    for (i in operators.indices) {
+        result = when (operators[i]) {
+            '+' -> result + numbers[i + 1]
+            '*' -> result * numbers[i + 1]
+            else -> result
         }
     }
     return result
 }
+
+fun generateOperatorCombinations(length: Int): List<List<Char>> {
+    if (length == 0) return listOf(emptyList())
+    val smallerCombinations = generateOperatorCombinations(length - 1)
+    val result = mutableListOf<List<Char>>()
+    for (comb in smallerCombinations) {
+        result.add(comb + '+')
+        result.add(comb + '*')
+    }
+    return result
+}
+
+fun calculateCalibrationResult(input: List<String>): Long {
+    var totalCalibrationResult: Long = 0
+
+    for (line in input) {
+        val parts = line.split(":")
+        val target = parts[0].trim().toLong()
+        val numbers = parts[1].trim().split(" ").map(String::toLong)
+
+        val operatorCombinations = generateOperatorCombinations(numbers.size - 1)
+        var isSolvable = false
+
+        for (operators in operatorCombinations) {
+            if (evaluateExpression(numbers, operators) == target) {
+                isSolvable = true
+                break
+            }
+        }
+
+        if (isSolvable) {
+            totalCalibrationResult += target
+        }
+    }
+
+    return totalCalibrationResult
+}
+
+val result = calculateCalibrationResult(lines)
+println("Total Calibration Result: $result")
