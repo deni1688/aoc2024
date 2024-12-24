@@ -53,6 +53,5 @@ fun calculateCalibrationResult(input: List<String>): Long {
     return totalCalibrationResult
 }
 
-
 val result = calculateCalibrationResult(lines)
 println("Total Calibration Result: $result")

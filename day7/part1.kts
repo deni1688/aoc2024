@@ -26,12 +26,12 @@ fun generateOperatorCombinations(length: Int): List<List<Char>> {
 }
 
 fun calculateCalibrationResult(input: List<String>): Long {
-    var totalCalibrationResult: Long = 0
+    var totalCalibrationResult = 0L
 
     for (line in input) {
         val parts = line.split(":")
         val target = parts[0].trim().toLong()
-        val numbers = parts[1].trim().split(" ").map(String::toLong)
+        val numbers = parts[1].trim().split(" ").map { it.toLong() }
 
         val operatorCombinations = generateOperatorCombinations(numbers.size - 1)
         var isSolvable = false
